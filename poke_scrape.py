@@ -8,7 +8,7 @@ card_name = card_collection["Card name"]
 card_number = card_collection["Card number"]
 expansion = card_collection["Expansion"]
 card_type = card_collection["Card variant"]
-card_type = [card for card in card_type]  # Make card type more readable
+card_type = [card for card in card_type]  # Make card type more readable.
 
 website = "https://www.tcgcollector.com/cards/intl"
 search_bar = "cardSearch"
