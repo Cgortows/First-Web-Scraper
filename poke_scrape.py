@@ -44,13 +44,14 @@ def remove_nan_if_present():
 def search_site():
     global driver
     driver = webdriver.Chrome()
-    number_of_cards_searched = 0
 
-    for card in card_being_searched:
+    variant_to_index = {'Regular': 0, 'Reverse Holo': 4, 'Holo Rare': 8, 'Full Art': 12, 'Rainbow Rare': 16, 'Alternate Art': 20}
+
+    for i, card in enumerate(card_being_searched):
         driver.get(website)
         driver.find_element(By.NAME, search_bar).send_keys(str(card))  # Enter full name in searchbar
         time.sleep(3)
-        driver.find_element(By.PARTIAL_LINK_TEXT, pokemon_name[number_of_cards_searched]).click()  # Click link for name
+        driver.find_element(By.PARTIAL_LINK_TEXT, pokemon_name[i]).click()  # Click link for name
         time.sleep(2)
         driver.find_element(By.CLASS_NAME, hidden_price_html).click()  # Click area where price is hidden
         time.sleep(2)
@@ -62,42 +63,12 @@ def search_site():
         low_price = ""
         mid_price = ""
         try:  # searching for correct variant to then pull correct prices
+            variant_index = variant_to_index.get(card_type[i], 0)
+            market_price = price_finder[variant_index]
+            low_price = price_finder[variant_index + 1]
+            mid_price = price_finder[variant_index + 2]
+            print(market_price.text, low_price.text, mid_price.text)
 
-            if card_type[number_of_cards_searched] == variant_finder[0].text:
-                market_price = price_finder[0]
-                low_price = price_finder[1]
-                mid_price = price_finder[2]
-                print(market_price.text, low_price.text, mid_price.text)
-            elif (card_type[number_of_cards_searched]) in not_found_variants:  # Use base price
-                market_price = price_finder[0]
-                low_price = price_finder[1]
-                mid_price = price_finder[2]
-                print(market_price.text, low_price.text, mid_price.text)
-            elif card_type[number_of_cards_searched] == variant_finder[1].text:
-                market_price = price_finder[4]
-                low_price = price_finder[5]
-                mid_price = price_finder[6]
-                print(market_price.text, low_price.text, mid_price.text)
-            elif card_type[number_of_cards_searched] == variant_finder[2].text:
-                market_price = price_finder[8]
-                low_price = price_finder[9]
-                mid_price = price_finder[10]
-                print(market_price.text, low_price.text, mid_price.text)
-            elif card_type[number_of_cards_searched] == variant_finder[3].text:
-                market_price = price_finder[12]
-                low_price = price_finder[13]
-                mid_price = price_finder[14]
-                print(market_price.text, low_price.text, mid_price.text)
-            elif card_type[number_of_cards_searched] == variant_finder[4].text:
-                market_price = price_finder[16]
-                low_price = price_finder[17]
-                mid_price = price_finder[18]
-                print(market_price.text, low_price.text, mid_price.text)
-            elif card_type[number_of_cards_searched] == variant_finder[5].text:
-                market_price = price_finder[20]
-                low_price = price_finder[21]
-                mid_price = price_finder[22]
-                print(market_price.text, low_price.text, mid_price.text)
             Market_list.append(market_price.text)
             Low_list.append(low_price.text)
             Mid_list.append(mid_price.text)
@@ -107,13 +78,12 @@ def search_site():
             Low_list.append("$0.01")
             Mid_list.append("$0.01")
 
-        number_of_cards_searched += 1
+    driver.quit()
 
     card_collection["Market_price"] = Market_list
     card_collection["Low_price"] = Low_list
     card_collection["Mid_price"] = Mid_list
     card_collection.to_csv("Charizard_cards.csv", mode='w', index=False)
-
 
 remove_nan_if_present()
 search_site()
