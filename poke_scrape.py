@@ -32,58 +32,57 @@ not_found_variants = ['Cracked Ice Holo', 'Cosmos Holo',  # Don't show up in hid
                       'Normal (Missing Expansion Symbol)', ]
 
 
-def remove_nan_if_present():
-    for (name, number, exp) in zip(card_name, card_number, expansion):
-        pokemon_name.append(name)
-        if str(number) == "nan":
-            card_being_searched.append(str(name) + " " + str(exp))
-        else:
-            card_being_searched.append(str(name) + " " + str(number) + " " + str(exp))
+card_being_searched = [f"{name} {number} {exp}" if not pd.isna(number)
+                       else f"{name} {exp}" for name, number, exp in zip(card_name, card_number, expansion)]
+assert len(card_being_searched) == len(card_name) == len(card_number) == len(expansion)
 
 
 def search_site():
-    global driver
-    driver = webdriver.Chrome()
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    with webdriver.Chrome(options=options) as driver:
+        variant_to_index = {'Regular': 0, 'Reverse Holo': 4, 'Holo Rare': 8, 'Full Art': 12, 'Rainbow Rare': 16, 'Alternate Art': 20}
 
-    variant_to_index = {'Regular': 0, 'Reverse Holo': 4, 'Holo Rare': 8, 'Full Art': 12, 'Rainbow Rare': 16, 'Alternate Art': 20}
+        for i, card in enumerate(card_being_searched):
+            driver.get(website)
+            driver.find_element(By.NAME, search_bar).send_keys(str(card))  # Enter full name in searchbar
+            time.sleep(3)
+            driver.find_element_by_partial_link_text(pokemon_name[i]).click()  # Click link for name
+            time.sleep(2)
+            driver.find_element(By.CLASS_NAME, hidden_price_html).click()  # Click area where price is hidden
+            time.sleep(2)
 
-    for i, card in enumerate(card_being_searched):
-        driver.get(website)
-        driver.find_element(By.NAME, search_bar).send_keys(str(card))  # Enter full name in searchbar
-        time.sleep(3)
-        driver.find_element(By.PARTIAL_LINK_TEXT, pokemon_name[i]).click()  # Click link for name
-        time.sleep(2)
-        driver.find_element(By.CLASS_NAME, hidden_price_html).click()  # Click area where price is hidden
-        time.sleep(2)
+            variant_finder = driver.find_elements(By.CLASS_NAME, variant_html)
+            price_finder = driver.find_elements(By.XPATH, price_html)
 
-        variant_finder = driver.find_elements(By.CLASS_NAME, variant_html)
-        price_finder = driver.find_elements(By.XPATH, price_html)
+            market_price = ""
+            low_price = ""
+            mid_price = ""
+            try:  # searching for correct variant to then pull correct prices
+                variant_index = variant_to_index.get(card_type[i], 0)
+                market_price = price_finder[variant_index]
+                low_price = price_finder[variant_index + 1]
+                mid_price = price_finder[variant_index + 2]
+                print(market_price.text, low_price.text, mid_price.text)
 
-        market_price = ""
-        low_price = ""
-        mid_price = ""
-        try:  # searching for correct variant to then pull correct prices
-            variant_index = variant_to_index.get(card_type[i], 0)
-            market_price = price_finder[variant_index]
-            low_price = price_finder[variant_index + 1]
-            mid_price = price_finder[variant_index + 2]
-            print(market_price.text, low_price.text, mid_price.text)
+                Market_list.append(market_price.text)
+                Low_list.append(low_price.text)
+                Mid_list.append(mid_price.text)
 
-            Market_list.append(market_price.text)
-            Low_list.append(low_price.text)
-            Mid_list.append(mid_price.text)
+            except IndexError:
+                Market_list.append("$0.01")
+                Low_list.append("$0.01")
+                Mid_list.append("$0.01")
+            except NoSuchElementException as e:
+                print(f"Error: {e}")
+            except ElementClickInterceptedException as e:
+                print(f"Error: {e}")
+        driver.quit()
 
-        except IndexError:
-            Market_list.append("$0.01")
-            Low_list.append("$0.01")
-            Mid_list.append("$0.01")
-
-    driver.quit()
-
-    card_collection["Market_price"] = Market_list
-    card_collection["Low_price"] = Low_list
-    card_collection["Mid_price"] = Mid_list
-    card_collection.to_csv("Charizard_cards.csv", mode='w', index=False)
+        card_collection["Market_price"] = Market_list
+        card_collection["Low_price"] = Low_list
+        card_collection["Mid_price"] = Mid_list
+        card_collection.to_csv("Charizard_cards.csv", mode='w', index=False)
 
 remove_nan_if_present()
 search_site()
