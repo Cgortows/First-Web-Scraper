@@ -2,8 +2,16 @@ import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import time
+import chromedriver_autoinstaller
+from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import ElementClickInterceptedException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
-card_collection = pd.read_csv("Charizard_cards.csv")
+chromedriver_autoinstaller.install()
+
+card_collection = pd.read_csv("practice87.csv")
 card_name = card_collection["Card name"]
 card_number = card_collection["Card number"]
 expansion = card_collection["Expansion"]
@@ -32,57 +40,66 @@ not_found_variants = ['Cracked Ice Holo', 'Cosmos Holo',  # Don't show up in hid
                       'Normal (Missing Expansion Symbol)', ]
 
 
+def remove_nan_if_present():
+    for (name, number, exp) in zip(card_name, card_number, expansion):
+        if str(number) == "nan":
+            card_being_searched.append(str(name) + " " + str(exp))
+        else:
+            card_being_searched.append(str(name) + " " + str(number) + " " + str(exp))
+
+        # Extract the name of the Pokemon and add it to the pokemon_name list
+        pokemon_name.append(name.split()[0])
+
 card_being_searched = [f"{name} {number} {exp}" if not pd.isna(number)
                        else f"{name} {exp}" for name, number, exp in zip(card_name, card_number, expansion)]
+
 assert len(card_being_searched) == len(card_name) == len(card_number) == len(expansion)
 
 
 def search_site():
     options = webdriver.ChromeOptions()
-    options.add_argument('--headless')
-    with webdriver.Chrome(options=options) as driver:
-        variant_to_index = {'Regular': 0, 'Reverse Holo': 4, 'Holo Rare': 8, 'Full Art': 12, 'Rainbow Rare': 16, 'Alternate Art': 20}
+    try:
+        with webdriver.Chrome(options=options) as driver:
+            variant_to_index = {'Regular': 0, 'Reverse Holo': 4, 'Holo Rare': 8, 'Full Art': 12, 'Rainbow Rare': 16, 'Alternate Art': 20}
+            wait = WebDriverWait(driver, 5)
+            for i, card in enumerate(card_being_searched):
+                driver.get(website)
+                driver.find_element(By.NAME, search_bar).send_keys(str(card))  # Enter full name in searchbar
+                wait.until(EC.visibility_of_element_located(
+                    (By.CSS_SELECTOR, 'button.card-price-details-modal-show-button'))).click()
 
-        for i, card in enumerate(card_being_searched):
-            driver.get(website)
-            driver.find_element(By.NAME, search_bar).send_keys(str(card))  # Enter full name in searchbar
-            time.sleep(3)
-            driver.find_element_by_partial_link_text(pokemon_name[i]).click()  # Click link for name
-            time.sleep(2)
-            driver.find_element(By.CLASS_NAME, hidden_price_html).click()  # Click area where price is hidden
-            time.sleep(2)
+                variant_finder = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, variant_html)))
+                price_finder = wait.until(EC.presence_of_all_elements_located((By.XPATH, price_html)))
 
-            variant_finder = driver.find_elements(By.CLASS_NAME, variant_html)
-            price_finder = driver.find_elements(By.XPATH, price_html)
+                market_price = ""
+                low_price = ""
+                mid_price = ""
+                try:  # searching for correct variant to then pull correct prices
+                    variant_index = variant_to_index.get(card_type[i], 0)
+                    market_price = price_finder[variant_index]
+                    low_price = price_finder[variant_index + 1]
+                    mid_price = price_finder[variant_index + 2]
+                    print(market_price.text, low_price.text, mid_price.text)
+                    Market_list.append(market_price.text)
+                    Low_list.append(low_price.text)
+                    Mid_list.append(mid_price.text)
 
-            market_price = ""
-            low_price = ""
-            mid_price = ""
-            try:  # searching for correct variant to then pull correct prices
-                variant_index = variant_to_index.get(card_type[i], 0)
-                market_price = price_finder[variant_index]
-                low_price = price_finder[variant_index + 1]
-                mid_price = price_finder[variant_index + 2]
-                print(market_price.text, low_price.text, mid_price.text)
+                except IndexError:
+                    Market_list.append("$0.01")
+                    Low_list.append("$0.01")
+                    Mid_list.append("$0.01")
+                except NoSuchElementException as e:
+                    print(f"Error: {e}")
+                except ElementClickInterceptedException as e:
+                    print(f"Error: {e}")
 
-                Market_list.append(market_price.text)
-                Low_list.append(low_price.text)
-                Mid_list.append(mid_price.text)
+            # card_collection["Market_price"] = Market_list
+            # card_collection["Low_price"] = Low_list
+            # card_collection["Mid_price"] = Mid_list
+            # card_collection.to_csv("practice87.csv", mode='w', index=False)
 
-            except IndexError:
-                Market_list.append("$0.01")
-                Low_list.append("$0.01")
-                Mid_list.append("$0.01")
-            except NoSuchElementException as e:
-                print(f"Error: {e}")
-            except ElementClickInterceptedException as e:
-                print(f"Error: {e}")
-        driver.quit()
-
-        card_collection["Market_price"] = Market_list
-        card_collection["Low_price"] = Low_list
-        card_collection["Mid_price"] = Mid_list
-        card_collection.to_csv("Charizard_cards.csv", mode='w', index=False)
+    finally:
+        pass
 
 remove_nan_if_present()
 search_site()
