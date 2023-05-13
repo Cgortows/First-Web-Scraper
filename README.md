@@ -1,4 +1,3 @@
-# main.py
 Pokemon Card Price Scraper.
 This program scrapes the prices of Pokemon cards saved in a CSV file from a card collecting website. The purpose of this project was to improve one of the first programs I ever made using the help of ChatGPT.
 
